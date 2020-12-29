@@ -15,6 +15,7 @@ Contributors:
 """
 
 import asyncio
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,6 +38,7 @@ from pypck.request_handlers import (
     CommentRequestHandler,
     GroupMembershipDynamicRequestHandler,
     GroupMembershipStaticRequestHandler,
+    HeartbeatRequestHandler,
     NameRequestHandler,
     OemTextRequestHandler,
     SerialRequestHandler,
@@ -837,6 +839,13 @@ class ModuleConnection(AbstractConnection):
             self, num_tries, timeout_msec
         )
 
+        # Module heartbeat
+        max_lost: int = self.conn.settings["HEARTBEAT_MAX_LOST"]
+        interval_msec: int = self.conn.settings["HEARTBEAT_INTERVAL_MSEC"]
+        self.heartbeat_request_handler = HeartbeatRequestHandler(
+            self, interval_msec=interval_msec, max_lost=max_lost
+        )
+
         self.status_requests_handler = StatusRequestsHandler(self)
         if self.activate_status_requests:
             self.task_registry.create_task(self.activate_status_request_handlers())
@@ -916,6 +925,11 @@ class ModuleConnection(AbstractConnection):
         await self.oem_text_request_handler.cancel()
         await self.static_groups_request_handler.cancel()
         await self.dynamic_groups_request_handler.cancel()
+        await self.heartbeat_request_handler.cancel()
+
+    def activate_heartbeat(self) -> None:
+        """Activate the heartbeat process."""
+        self.heartbeat_request_handler.activate()
 
     def set_s0_enabled(self, s0_enabled: bool) -> None:
         """Set the activation status for S0 variables.
@@ -951,6 +965,7 @@ class ModuleConnection(AbstractConnection):
         toggle_output, switch_relays, ...)
         """
         if isinstance(inp, inputs.ModAck):
+            self.heartbeat_request_handler.process_input(inp)
             await self.on_ack(inp.code)
             return None
 
@@ -1027,6 +1042,16 @@ class ModuleConnection(AbstractConnection):
         """Return static and dynamic group membership."""
         return self.static_groups | self.dynamic_groups
 
+    @property
+    def alive(self) -> bool:
+        """Return the module heartbeat status."""
+        return self.heartbeat_request_handler.alive
+
+    @property
+    def last_seen(self) -> datetime:
+        """Return the timestamp of the last alive signal of the module."""
+        return self.heartbeat_request_handler.last_seen
+
     # ## future properties
 
     @property
@@ -1065,3 +1090,11 @@ class ModuleConnection(AbstractConnection):
             self.dynamic_groups_request_handler.request(),
         )
         return static_groups | dynamic_groups
+
+    async def wait_for_heartbeat_lost(self) -> None:
+        """Wait for the loss of the heartbeat."""
+        await self.heartbeat_request_handler.wait_for_heartbeat_lost()
+
+    async def wait_for_heartbeat_alive(self) -> None:
+        """Wait for the recovery of the heartbeat."""
+        await self.heartbeat_request_handler.wait_for_heartbeat_alive()

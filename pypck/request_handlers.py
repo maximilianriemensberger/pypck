@@ -14,6 +14,7 @@ Contributors:
 """
 
 import asyncio
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from pypck import inputs, lcn_defs
@@ -445,6 +446,81 @@ class GroupMembershipDynamicRequestHandler(RequestHandler):
         self.trh.activate()
         await self.groups_known.wait()
         return self.groups
+
+
+class HeartbeatRequestHandler(RequestHandler):
+    """Request handler to continuously monitor the presence of a module."""
+
+    def __init__(
+        self,
+        addr_conn: "ModuleConnection",
+        interval_msec: int = 10000,
+        max_lost: int = 3,
+    ):
+        """Initialize class instance."""
+        self.heartbeat_lost_event = asyncio.Event()
+        self.heartbeat_alive_event = asyncio.Event()
+        self.max_lost = max_lost
+        self.pending = 0
+        self._last_seen = datetime.fromtimestamp(0)
+        super().__init__(addr_conn, -1, interval_msec)
+
+    def process_input(self, inp: inputs.Input) -> None:
+        """Process incoming input object.
+
+        Method to handle incoming commands for this specific request handler.
+        """
+        # Any message whatsoever from a module is considered a successful
+        # hearbeat signal.
+        self.pending = 0
+        self._last_seen = datetime.now()
+        self.heartbeat_alive_event.set()
+        self.heartbeat_lost_event.clear()
+
+    async def timeout(self, failed: bool = False) -> None:
+        """Is called on heartbeat request timeout."""
+        assert not failed
+        if self.pending >= self.max_lost:
+            self.heartbeat_alive_event.clear()
+            self.heartbeat_lost_event.set()
+        self.pending += 1
+        await self.addr_conn.send_command(True, PckGenerator.empty())
+
+    def activate(self) -> None:
+        """Activate the heartbeat process."""
+        if not self.trh.is_active():
+            self.trh.activate()
+
+    async def cancel(self) -> None:
+        """Cancel request."""
+        self.pending = 0
+        await super().cancel()
+
+    async def is_active(self) -> bool:
+        """Return whether the heartbeat process is active."""
+        return self.trh.is_active()
+
+    async def wait_for_heartbeat_lost(self) -> None:
+        """Wait for the loss of the heartbeat."""
+        if not self.trh.is_active():
+            self.trh.activate()
+        await self.heartbeat_lost_event.wait()
+
+    async def wait_for_heartbeat_alive(self) -> None:
+        """Wait for the recovery of the heartbeat."""
+        if not self.trh.is_active():
+            self.trh.activate()
+        await self.heartbeat_alive_event.wait()
+
+    @property
+    def alive(self) -> bool:
+        """Return whether the module is alive."""
+        return self.heartbeat_alive_event.is_set()
+
+    @property
+    def last_seen(self) -> datetime:
+        """Return when the module was last seen."""
+        return self._last_seen
 
 
 class StatusRequestsHandler:

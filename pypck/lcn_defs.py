@@ -1379,9 +1379,13 @@ default_connection_settings: Dict[str, Any] = {
     # values that do not send
     # their values on change
     # (always polled).
-    "STATUS_REQUEST_DELAY_AFTER_COMMAND_MSEC": 2000  # Status request delay
+    "STATUS_REQUEST_DELAY_AFTER_COMMAND_MSEC": 2000,  # Status request delay
     # after a command has
     # been send which
     # potentially changed
     # that status.
+    "HEARTBEAT_MAX_LOST": 3,  # Max number of lost heartbeat requests before
+    # detecting that a module in not alive
+    "HEARTBEAT_INTERVAL_MSEC": 10000,  # Time between two consecutive hearbeat
+    # requests
 }
