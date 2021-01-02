@@ -322,6 +322,10 @@ async def test_dump_modules_no_segement_couplers(pchk_server, pypck_client):
                 "comment": "",
                 "oem_text": ["", "", "", ""],
                 "groups": {"static": [11, 51, 200], "dynamic": [15, 52, 100]},
+                "heartbeat": {
+                    "alive": True,
+                    "last_seen": dump["0"]["7"]["heartbeat"]["last_seen"],
+                },
             },
             "8": {
                 "segment": 0,
@@ -338,6 +342,10 @@ async def test_dump_modules_no_segement_couplers(pchk_server, pypck_client):
                 "comment": "",
                 "oem_text": ["", "", "", ""],
                 "groups": {"static": [11, 51, 220], "dynamic": [15, 52, 120]},
+                "heartbeat": {
+                    "alive": True,
+                    "last_seen": dump["0"]["8"]["heartbeat"]["last_seen"],
+                },
             },
         }
     }
@@ -382,6 +390,10 @@ async def test_dump_modules_multi_segment(pchk_server, pypck_client):
                 "comment": "",
                 "oem_text": ["", "", "", ""],
                 "groups": {"static": [11, 51, 200], "dynamic": [15, 52, 100]},
+                "heartbeat": {
+                    "alive": True,
+                    "last_seen": dump["20"]["7"]["heartbeat"]["last_seen"],
+                },
             },
         },
         "22": {
@@ -400,6 +412,10 @@ async def test_dump_modules_multi_segment(pchk_server, pypck_client):
                 "comment": "",
                 "oem_text": ["", "", "", ""],
                 "groups": {"static": [11, 51, 220], "dynamic": [15, 52, 120]},
+                "heartbeat": {
+                    "alive": True,
+                    "last_seen": dump["22"]["8"]["heartbeat"]["last_seen"],
+                },
             },
         },
     }

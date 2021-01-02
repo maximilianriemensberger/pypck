@@ -999,6 +999,10 @@ class ModuleConnection(AbstractConnection):
                 "static": sorted(addr.addr_id for addr in self.static_groups),
                 "dynamic": sorted(addr.addr_id for addr in self.dynamic_groups),
             },
+            "heartbeat": {
+                "alive": self.alive,
+                "last_seen": self.last_seen.isoformat(),
+            },
         }
 
     # ##
